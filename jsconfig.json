@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "baseUrl": "./src",
+    "esModuleInterop": true,
+    "paths": {
+      "@pages/*": ["pages/*"],
+      "@api/*": ["pages/api/*"],
+      "@services/*": ["services/*"],
+      "@credentials/*": ["credentials/*"],
+      "@util/*": ["util/*"],
+      "@components/*": ["components/*"],
+      "@context/*": ["context/*"],
+      "@helpers/*": ["helpers/*"],
+      "@assets/*": ["assets/*"],
+      "@db/*": ["db/*"],
+      "@data/*": ["data/*"],
+      "@constants/*": ["constants/*"]
+    }
+  }
+}

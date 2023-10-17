@@ -1,0 +1,11 @@
+# https://taskfile.dev
+version: '3'
+
+tasks:
+  checks:
+    desc: Perform all checks on all project components
+    cmds:
+      - npm run lint
+      - npm run test
+      - npm run build
+      - docker build -t dashboard-worker --build-arg "APP_NAME=dashboard-worker" -f Dockerfile.apps .

@@ -1,0 +1,26 @@
+FROM node:16.19.0-slim AS build
+ARG APP_NAME
+
+WORKDIR /usr/src/app
+COPY package*.json ./
+
+# Required for legacy-peer-deps
+COPY .npmrc ./
+
+RUN npm i
+COPY . .
+
+RUN npm run app:build ${APP_NAME}
+
+FROM node:16.19.0-slim
+ARG APP_NAME
+
+WORKDIR /usr/src/app
+COPY package*.json ./
+COPY .npmrc ./
+RUN npm ci --omit=dev
+
+COPY --from=build /usr/src/app/dist ./dist
+
+ENV APP_NAME=${APP_NAME}
+CMD [ "sh", "-c", "npm run app:start ${APP_NAME}" ]

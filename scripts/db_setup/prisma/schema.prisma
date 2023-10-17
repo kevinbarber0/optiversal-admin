@@ -1,0 +1,881 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// shopify sessions data model
+
+model shopify_sessions {
+  id               String  @id @db.VarChar(255)
+  shop             String  @db.VarChar(255)
+  state            String  @db.VarChar(255)
+  isOnline         Boolean
+  scope            String? @db.VarChar(1024)
+  expires          Int?
+  onlineAccessInfo String? @db.VarChar(255)
+  accessToken      String? @db.VarChar(255)
+}
+
+model shopify_sessions_migrations {
+  migration_name String @id @db.VarChar(255)
+}
+
+
+
+/// Optiversal data models
+model account {
+  account_id      String    @unique()
+  organization_id String?
+  email           String    @id(map: "account_pk")
+  details         Json?
+  date_added      DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  last_access     DateTime? @db.Timestamp(6)
+  roles           Json?     @default("[\"manage product copy\", \"view pages\"]")
+  old_account_id  String?
+  organizations   account_organization[]
+}
+
+model account_action {
+  account_action_id String    @id(map: "account_action_pk")
+  organization_id   String
+  account_id        String?
+  account_email     String?
+  action_details    Json?
+  date_added        DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(0)
+
+  @@index([organization_id])
+}
+
+model account_organization {
+  account_id      String
+  organization_id String
+  roles           Json?     @default("[\"view pages\", \"manage product copy\"]")
+  date_added      DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  status          Int?
+  account         account   @relation(fields: [account_id], references: [account_id])
+  organization    organization @relation(fields: [organization_id], references: [organization_id])
+  @@id([account_id, organization_id], map: "account_organization_pk")
+  @@index([account_id])
+  @@index([organization_id])
+}
+
+model account_token {
+  token String @id(map: "account_token_pk")
+}
+
+model annotation_topic {
+  annotation_topic_id String    @id(map: "annotation_topic_pk") @default(dbgenerated("gen_random_uuid()"))
+  annotation_type_id  String?
+  organization_id     String?
+  topic               String
+  display_name        String?
+  synonyms            Json?
+  date_added          DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  approved            Boolean?
+  prediction_count    Int?      @default(0)
+  tags                Json?
+
+  @@unique([annotation_type_id, organization_id, topic], map: "annotation_topic_annotation_type_id_organization_id_topic_idx")
+  @@index([organization_id, annotation_type_id])
+  @@index([organization_id])
+}
+
+model annotation_type {
+  annotation_type_id String    @id(map: "annotation_type_pk") @default(dbgenerated("gen_random_uuid()"))
+  organization_ids   Json?
+  name               String?
+  type               String?
+  display_order      Int?
+  content_type       String?
+  date_added         DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  color              String?
+}
+
+model api_key {
+  api_key         String  @id(map: "api_key_pk")
+  organization_id String?
+}
+
+model category {
+  organization_id       String
+  external_id           String
+  name                  String?
+  category_url          String?
+  date_added            DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  category_hierarchy    Json?
+  parent_category_id    String?
+  top_level_category_id String?
+  translations          Json?
+
+  @@id([organization_id, external_id], map: "category_pk")
+  @@index([organization_id])
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by the Prisma Client.
+model category_concept {
+  organization_id       String
+  category_reference_id String?   @db.VarChar(200)
+  concept_id            Int
+  date_added            DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+
+  @@ignore
+}
+
+model completion_cache {
+  prompt     String    @id(map: "completion_cache_pk")
+  completion String?
+  date_added DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+}
+
+model component {
+  component_id    String    @id(map: "component_pk") @default(dbgenerated("gen_random_uuid()"))
+  organization_id String?
+  name            String?
+  settings        Json?
+  date_added      DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  date_modified   DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  deleted         Boolean?  @default(false)
+  display_order   Int?
+  display_group   String?
+  description     String?
+  allow_workflow  Boolean?  @default(false)
+}
+
+model composition {
+  composition_id      String    @id(map: "composition_pk")
+  organization_id     String
+  author_id           String?
+  content_template_id String?
+  title               String?
+  content             Json?
+  status              Int?
+  date_added          DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  date_modified       DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  date_published      DateTime? @db.Timestamp(6)
+}
+
+model concept {
+  concept_id      Int       @id(map: "concepts_pk") @default(autoincrement())
+  name            String?   @db.VarChar(100)
+  suppress        Boolean?  @default(false)
+  notes           String?
+  date_added      DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  custom_positive String?
+  custom_neutral  String?
+  custom_negative String?
+  lemma           String?
+
+  @@index([lemma], map: "concepts_lemma_idx")
+}
+
+model concept_expression {
+  concept_expression_id Int       @id(map: "conceptexpressions_pk") @default(autoincrement())
+  concept_id            Int
+  expression            String?   @db.VarChar(100)
+  date_added            DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  lemma                 String?
+
+  @@index([concept_id], map: "conceptexpressions_conceptid_idx")
+  @@index([lemma], map: "conceptexpressions_lemma_idx")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by the Prisma Client.
+model concept_expression_orig {
+  concept_expression_id Int
+  concept_id            Int
+  expression            String?   @db.VarChar(100)
+  date_added            DateTime? @db.Timestamp(6)
+  lemma                 String?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by the Prisma Client.
+model concept_orig {
+  concept_id      Int
+  name            String?   @db.VarChar(100)
+  suppress        Boolean?
+  notes           String?
+  date_added      DateTime? @db.Timestamp(6)
+  custom_positive String?
+  custom_neutral  String?
+  custom_negative String?
+  lemma           String?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by the Prisma Client.
+model concept_relationship {
+  from_concept_id   Int
+  to_concept_id     Int
+  relationship_type String?   @db.VarChar(50)
+  date_added        DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by the Prisma Client.
+model concept_relationship_orig {
+  from_concept_id   Int
+  to_concept_id     Int
+  relationship_type String?   @db.VarChar(50)
+  date_added        DateTime? @db.Timestamp(6)
+
+  @@ignore
+}
+
+model content_label {
+  label           String
+  organization_id String
+  date_added      DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(0)
+
+  @@id([label, organization_id], map: "content_label_pk")
+}
+
+model content_label_alert {
+  alert_id        String    @id(map: "content_label_alert_pk")
+  subscription_id String
+  account_id      String
+  labels          Json?
+  date_triggered  DateTime? @db.Timestamp(0)
+  date_notified   DateTime? @db.Timestamp(0)
+  item_id         String?
+  item_type       String?
+
+  @@index([account_id])
+  @@index([subscription_id])
+}
+
+model content_label_subscription {
+  subscription_id String    @id(map: "content_label_subscription_pk")
+  account_id      String
+  labels          Json?
+  frequency       String?
+  date_added      DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(0)
+  last_notified   DateTime? @db.Timestamp(0)
+
+  @@index([account_id])
+}
+
+model content_template {
+  content_template_id String    @id(map: "content_template_pk")
+  organization_id     String?
+  name                String?
+  settings            Json?
+  date_added          DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  date_modified       DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  deleted             Boolean?  @default(false)
+  content             Json?
+  display_order       Int?
+
+  @@index([content_template_id, name])
+}
+
+model content_workflow {
+  content_workflow_id String    @id(map: "content_workflow_pk")
+  name                String?
+  search_params       Json?
+  content_types       Json?
+  assigned_to         Json?
+  created_by          String?
+  date_added          DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(0)
+  date_modified       DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(0)
+  organization_id     String?
+  workflow_type       String?
+  status              Int?
+  settings            Json?
+}
+
+model content_workflow_item {
+  content_workflow_item_id String    @id(map: "content_workflow_item_pk")
+  content_workflow_id      String?
+  organization_id          String?
+  input_content            Json?
+  output_content           String?
+  date_completed           DateTime? @db.Timestamp(6)
+  completed_by             String?
+  item_type                String?
+  item_id                  String?
+  workflow_action          String?
+  item_order               Int?
+  date_added               DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+
+  @@index([content_workflow_id, completed_by])
+  @@index([content_workflow_id])
+}
+
+model content_workflow_product {
+  content_workflow_id String
+  product_id          String
+  organization_id     String?
+  content             Json?
+  date_completed      DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(0)
+  completed_by        String?
+
+  @@id([content_workflow_id, product_id], map: "content_workflow_product_pk")
+}
+
+model custom_attribute {
+  organization_id String
+  name            String
+  values          Json?
+  date_added      DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(0)
+  data_type       Int?
+  original_lookup Json?
+
+  @@id([organization_id, name], map: "custom_attribute_pk")
+}
+
+model external_link {
+  external_link_id        String    @id(map: "external_link_pk") @default(dbgenerated("gen_random_uuid()"))
+  organization_id         String?
+  url                     String?
+  title                   String?
+  title_vector            Json?
+  last_retrieved          DateTime? @db.Timestamp(6)
+  date_added              DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  external_link_source_id String?
+  priority                Boolean?
+  extracted_values        Json?
+  friendly_title          String?
+  fetch_failed            Boolean?
+
+  @@unique([external_link_source_id, url], map: "external_link_external_link_source_id_url_idx")
+  @@index([organization_id])
+}
+
+model external_link_source {
+  external_link_source_id String    @id(map: "external_link_source_pk") @default(dbgenerated("gen_random_uuid()"))
+  organization_id         String?
+  url                     String?
+  match_expression        String?
+  last_retrieved          DateTime? @db.Timestamp(6)
+  date_added              DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  link_type               String?
+  title_expression        String?
+  value_expressions       Json?
+  settings                Json?
+}
+
+model facet {
+  facet_id           String    @id(map: "facet_pk") @default(dbgenerated("gen_random_uuid()"))
+  organization_id    String?
+  display_name       String?
+  facet_type         String?
+  value_source       String?
+  facet_settings     Json?
+  display_order      Int?
+  date_added         DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  display_group      String?
+  excluded_values    Json?
+  active             Boolean?  @default(false)
+  display_threshold  Decimal?  @db.Decimal
+  filter_group       String?
+  filter_group_order Int?
+
+  @@index([organization_id])
+}
+
+model family_group {
+  family_ids            String
+  organization_id       String
+  review_count          Int?
+  analyzed_review_count Int?
+  date_added            DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  date_modified         DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+
+  @@id([family_ids, organization_id], map: "family_group_pk")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by the Prisma Client.
+model feature {
+  feature_id           Int       @default(autoincrement())
+  concept_id           Int
+  organization_id      String?
+  feature              String?   @db.VarChar(150)
+  is_active            Boolean?
+  awaiting_approval    Boolean?
+  ignore               Boolean?
+  customized           Boolean?
+  is_adjective         Boolean?
+  sentiment            Int?
+  no_match_expressions String?   @db.VarChar(250)
+  total_instances      Int?
+  transferred_to       Int?
+  sample_opinions      String?
+  date_added           DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  translations         Json?
+
+  @@index([awaiting_approval, is_active, ignore])
+  @@ignore
+}
+
+model feature_expression {
+  feature_expression_id Int       @id(map: "feature_expression_pk") @default(autoincrement())
+  feature_id            Int
+  expression            String?   @db.VarChar(150)
+  date_added            DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+
+  @@unique([feature_id, expression], map: "feature_expression_feature_id_idx")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by the Prisma Client.
+model feature_filter {
+  expression String? @db.VarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by the Prisma Client.
+model feature_tag {
+  feature_id Int
+  tag_id     Int
+  date_added DateTime? @db.Timestamp(6)
+
+  @@ignore
+}
+
+model grammar_sample {
+  sample_id     String    @id(map: "grammar_sample_pk")
+  original_text String?   @unique(map: "grammar_sample_original_text_idx")
+  edited_text   String?
+  date_added    DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  date_edited   DateTime? @db.Timestamp(6)
+  listing_id    String?
+}
+
+model keyword {
+  keyword         String    @id(map: "keyword_pk")
+  metadata        Json?
+  date_added      DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  monthly_volume  Int?
+  seed_keyword    String?
+  valid           Boolean?
+  parsed_query    Json?
+  lemma           String?   @unique(map: "keyword_un")
+  source          String?
+  added_by        String?
+  keyword_hash    String?
+  is_primary      Boolean?
+  primary_keyword String?
+  variants        Json?
+  geo_volumes     Json?
+  locations       Json?
+
+  @@index([keyword_hash])
+  @@index([keyword_hash, is_primary])
+  @@index([keyword, locations])
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by the Prisma Client.
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model keyword_import {
+// @@ignore
+// }
+
+model keyword_seed {
+  keyword          String    @id(map: "keyword_seed_pk")
+  date_checked     DateTime? @db.Timestamp(6)
+  date_added       DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  organization_ids Json?     @default("[]")
+  suppress         Boolean?  @default(false)
+  extracted        Boolean?  @default(false)
+  exact_match      Boolean?  @default(false)
+}
+
+model keyword_suggestion {
+  keyword                  String
+  organization_id          String
+  original_search_results  Json?
+  current_search_results   Json?
+  original_quality_metrics Json?
+  current_quality_metrics  Json?
+  quality_score            Int?
+  source                   String?
+  status                   Int?
+  date_added               DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  last_checked             DateTime? @db.Timestamp(6)
+  monthly_volume           Int?
+  date_modified            DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  added_by                 String?
+  labels                   Json?
+  variants                 Json?
+  serp_domains             Json?
+  last_serp_check          DateTime? @db.Timestamp(6)
+  raw_serps                Json?
+  result_key               String?
+  relevance_score          Int?
+
+  @@id([keyword, organization_id], map: "organization_keywords_pk")
+  @@index([organization_id, result_key])
+  @@index([keyword], map: "organization_keywords_keyword_idx")
+  @@index([organization_id, status], map: "organization_keywords_organization_id_idx")
+}
+
+model listing {
+  listing_id           String    @id(map: "listing_pk") @default(dbgenerated("gen_random_uuid()"))
+  organization_id      String?
+  product_id           String?
+  url                  String?
+  source_id            String?
+  last_checked         DateTime? @db.Timestamp(6)
+  last_results         Json?
+  previously_checked   DateTime? @db.Timestamp(6)
+  previous_results     Json?
+  date_added           DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  external_id          String?
+  current_listing_data Json?
+  is_active            Boolean?  @default(true)
+  parameters           Json?
+  last_success         DateTime? @db.Timestamp(6)
+  failure_count        Int?      @default(0)
+  last_error           String?
+  marketplace_id       String?
+
+  @@unique([url, marketplace_id], map: "listing_url_idx")
+  @@index([marketplace_id])
+  @@index([organization_id])
+  @@index([organization_id, is_active, last_checked])
+  @@index([organization_id, product_id])
+}
+
+model listing_analysis {
+  listing_analysis_id String    @id(map: "listing_analysis_pk")
+  url                 String?
+  progress            Json?
+  listing_data        Json?
+  date_added          DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  analysis            Json?
+  score               Int?
+  organization_id     String?
+  listing_id          String?
+}
+
+model listing_rule {
+  listing_rule_id       String    @id(map: "listing_rule_pk")
+  organization_id       String?
+  name                  String?
+  rule_type             String?
+  module_name           String?
+  warning_threshold     Decimal?  @db.Decimal
+  error_threshold       Decimal?  @db.Decimal
+  warning_penalty       Decimal?  @db.Decimal
+  error_penalty         Decimal?  @db.Decimal
+  organization_settings Json?
+  date_added            DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  sources               Json?
+}
+
+model location_page {
+  organization_id String
+  location_id     String
+  page_id         String
+  page_content    Json?
+  date_added      DateTime? @db.Timestamp(6)
+  last_updated    DateTime? @db.Timestamp(6)
+  last_had_data   DateTime? @db.Timestamp(6)
+  status          Int?
+  search_results  Json?
+
+  @@id([organization_id, location_id, page_id], map: "location_page_pk")
+  @@index([organization_id])
+}
+
+model marketplace {
+  marketplace_id     String    @id(map: "marketplace_pk")
+  name               String?
+  site_url           String?
+  crawl_settings     Json?
+  last_listing_fetch DateTime? @db.Timestamp(6)
+  date_added         DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  fetcher            String?
+}
+
+model organization {
+  organization_id   String    @id(map: "organization_pk")
+  name              String?   @db.VarChar(50) @unique
+  directory         String?   @db.VarChar(50)
+  last_import       DateTime? @db.Timestamp(6)
+  staging_search    String?   @db.VarChar(50)
+  live_search       String?   @db.VarChar(50)
+  date_added        DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  active            Boolean?
+  settings          Json?
+  legacy_id         String?
+  allowed_domain    String?
+  identity_provider String?   @db.VarChar(50)
+  marketplace_ids   Json?
+  config            Json?     @default("{}")
+  public_id         String?   @unique
+  accounts          account_organization[]
+}
+
+model organization_geo {
+  organization_id String
+  name            String
+  latitude        Float?
+  longitude       Float?
+  date_added      DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  date_updated    DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  location_id     String    @id(map: "organization_geo_pk")
+  city            String?
+  state           String?
+}
+
+model page {
+  page_id                   String    @id(map: "page_pk")
+  organization_id           String
+  title                     String?
+  header_content            String?
+  footer_content            String?
+  results                   Json?
+  status                    Int?
+  date_added                DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  keyword                   String?
+  search_params             Json?
+  date_modified             DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  last_updated              DateTime? @db.Timestamp(6)
+  date_published            DateTime? @db.Timestamp(6)
+  monthly_volume            Int?
+  slug                      String
+  quality_score             Int?
+  quality_metrics           Json?
+  content_settings          Json?
+  content                   Json?
+  author_id                 String?
+  content_template_id       String?
+  query                     Json?
+  date_unpublished          DateTime? @db.Timestamp(0)
+  redirect_url              String?
+  related_pages             Json?
+  page_data                 Json?
+  last_editor_id            String?
+  content_flags             Json?
+  labels                    Json?
+  translations              Json?
+  original_content          Json?
+  original_content_settings Json?
+  page_data_v2              Json?
+  page_data_bak             Json?
+  content_bak               Json?
+  result_signature          Json?
+  last_signature_update     DateTime? @db.Timestamp(6)
+  label_context             Json?
+  weekly_metrics            Json?
+  page_settings             Json?
+  total_impressions         Int?
+  title_vector              Json?
+  schema                    String?
+  locations                 Json?
+  page_paths                Json?
+  last_serp_check           DateTime? @db.Timestamp(6)
+  serp_summary              Json?
+  result_key                String?
+
+  @@unique([organization_id, slug], map: "page_organization_id_idx")
+  @@index([content_template_id, organization_id])
+  @@index([date_published])
+  @@index([organization_id, result_key])
+  @@index([organization_id, status])
+  @@index([content_template_id])
+  @@index([content_template_id, organization_id, status], map: "page_content_template_id_org_id_status_idx")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by the Prisma Client.
+model page_metrics {
+  page_id         String?
+  date            String    @db.VarChar(10)
+  clicks          Int?
+  impressions     Int?
+  ctr             Decimal?  @db.Decimal
+  position        Decimal?  @db.Decimal
+  date_added      DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  week_num        Int?
+  queries         Json?     @default("[]")
+  slug            String?
+  organization_id String?
+
+  @@index([organization_id, slug], map: "page_metrics_organization_id_idx")
+  @@index([page_id])
+  @@ignore
+}
+
+model product {
+  sku                String
+  organization_id    String
+  name               String?
+  image_url          String?
+  description        String?
+  details            Json?
+  date_added         DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  url                String?
+  category_id        String?
+  content            Json?
+  family_ids         Json?
+  review_analysis    Json?
+  date_analyzed      DateTime? @db.Timestamp(6)
+  model              String?
+  page_content       Json?
+  content_vector     Json?
+  base_name          String?
+  keywords           String?
+  is_active          Boolean?
+  embeddings_date    DateTime? @db.Timestamp(0)
+  custom_attributes  Json?
+  features           Json?
+  last_imported      DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(0)
+  description_length Int?      @default(dbgenerated("length(btrim(COALESCE(description, ''::text)))"))
+  listing_scores     Json?
+  original_image_url String?
+  product_type       String?
+  product_type_date  DateTime? @db.Timestamp(6)
+  translations       Json?
+  extracted_queries  Json?
+  model_keywords     Json?
+  labels             Json?
+       
+  @@id([sku, organization_id], map: "product_pk")
+  @@unique([organization_id, is_active, sku], map: "product_organization_id_is_active_sku_idx")
+  @@index([organization_id, category_id])
+  @@index([organization_id, description_length])
+  @@index([organization_id])
+  @@index([organization_id, is_active])
+  @@index([organization_id, name])
+}
+
+model product_family_related_page {
+  family_id       String
+  organization_id String
+  related_pages   Json?
+  date_updated    DateTime? @db.Timestamp(6)
+
+  @@id([family_id, organization_id], map: "product_family_related_pages_pk")
+  @@index([organization_id])
+}
+
+model product_related_page {
+  sku             String
+  organization_id String
+  related_pages   Json?
+  date_updated    DateTime? @db.Timestamp(6)
+
+  @@id([sku, organization_id], map: "product_related_page_pk")
+  @@index([organization_id])
+}
+
+model query_embedding {
+  query      String @id(map: "query_embedding_pk")
+  embeddings Json?
+}
+
+model review {
+  review_id       String
+  organization_id String
+  review_data     Json?
+  review_analysis Json?
+  date_added      DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  date_analyzed   DateTime? @db.Timestamp(6)
+  annotations     Json?
+  date_annotated  DateTime? @db.Timestamp(6)
+  annotated_by    String?
+
+  @@id([review_id, organization_id], map: "review_pk")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by the Prisma Client.
+model rule_expression {
+  rule_expression_id Int
+  expression         String?   @db.VarChar(50)
+  type               String?   @db.VarChar(50)
+  is_regex           Boolean?
+  date_added         DateTime? @db.Timestamp(6)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by the Prisma Client.
+model search_filter {
+  filter_pattern String
+  filter_field   String?
+  comparison     Int?
+  value_hint     String?
+  name           String?
+  data_type      Int?
+  attribute_name String?
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by the Prisma Client.
+model synonym {
+  synonym    String? @db.VarChar(50)
+  synonym_of String? @db.VarChar(50)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by the Prisma Client.
+model tag {
+  tag_id     Int
+  tag        String?   @db.VarChar(50)
+  date_added DateTime? @db.Timestamp(6)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by the Prisma Client.
+model translation {
+  client             String?   @db.VarChar(120)
+  language           String?   @db.VarChar(5)
+  status             String?   @db.VarChar(20)
+  process_ts         DateTime? @db.Timestamp(6)
+  sentiment_last_run DateTime? @db.Timestamptz(6)
+
+  @@ignore
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by the Prisma Client.
+model unmapped_category {
+  organization_id    Int
+  name               String?   @db.VarChar(50)
+  pending_categories Int?
+  date_added         DateTime? @db.Timestamp(6)
+
+  @@ignore
+}
+
+model usage {
+  usage_id        String    @id(map: "usage_pk")
+  organization_id String
+  author_id       String?
+  content_type    String?
+  context         String?
+  sku             String?
+  settings        Json?
+  output          Json?
+  words           Int?
+  date_added      DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(0)
+  completion_text String?
+}
+
+model page_serp {
+  page_serp_id    String    @id(map: "page_serp_pk") @default(dbgenerated("gen_random_uuid()"))
+  page_id         String?
+  serp_data       Json?
+  date_added      DateTime? @default(dbgenerated("timezone('utc'::text, now())")) @db.Timestamp(6)
+  organization_id String?
+  fetch_date      String?
+
+  @@unique([page_id, fetch_date], map: "page_serp_page_id_fetch_date_idx")
+  @@index([organization_id])
+  @@index([page_id])
+}
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model qna_top {
+// }
